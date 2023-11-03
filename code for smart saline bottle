@@ -1,0 +1,54 @@
+running code 
+#include <LiquidCrystal.h>
+#include "HX711.h"
+#include <SoftwareSerial.h>
+
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+HX711 scale;
+
+#define calibration_factor -7050.0 //This value is obtained using the SparkFun_HX711_Calibration sketch
+#define LOADCELL_DOUT_PIN  9
+#define LOADCELL_SCK_PIN  8
+
+SoftwareSerial bluetoothSerial(6, 7); // RX, TX pins for HC-05 module
+
+void setup() {
+  pinMode(LED_BUILTIN, OUTPUT);
+  Serial.begin(9600);
+  lcd.begin(16, 2); // Initialize the LCD
+  lcd.setCursor(0, 0);
+
+  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+  scale.set_scale(calibration_factor);
+  scale.tare(); //Assuming there is no weight on the scale at start up, reset the scale to 0
+
+  lcd.setCursor(0, 0);
+  lcd.print("Saline Bottle:");
+
+  bluetoothSerial.begin(9600); // Initialize Bluetooth communication
+}
+
+void loop() {
+  float weight = scale.get_units();
+  lcd.setCursor(0, 1);
+  lcd.print(weight * 60.8, 1);
+  bluetoothSerial.println(weight * 60.8);
+  bluetoothSerial.println("mL");
+  lcd.setCursor(8, 1); // Display weight on the LCD
+  lcd.print("mL");
+
+  if (weight * 60.8 <= 90.0) {
+    digitalWrite(LED_BUILTIN, HIGH);
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("CHANGE SALINE!!!");
+    lcd.setCursor(0, 1);
+    //lcd.print("      "); // Clear the rest of the line
+    
+    bluetoothSerial.println("CHANGE SALINE!!!"); // Send data over Bluetooth
+  } else {
+    digitalWrite(LED_BUILTIN, LOW);
+    lcd.setCursor(0, 0);
+    lcd.print("Saline Bottle:  ");
+  }
+}
